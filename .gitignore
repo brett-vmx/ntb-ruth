@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.astro/
+.env
+.env.*
+!.env.example
+.DS_Store
+**/.DS_Store
+
+# Raw as-delivered client folders (John's original numbered handoff) — kept
+# on disk for reference, not tracked. The files actually used by the app
+# are copied/renamed into source-assets/ (see CLAUDE.md's "What this
+# project is" / asset-locations notes), same flat layout as ntb-jonah.
+/1_feature requests/
+/2_ntb text + other language texts/
+/3_navbar logos/
+/3a_About icon/
+/4_Illustrations/
+/5_mp3 audio files/
+/6_fonts/
+/7_Timing files/
+/8_PDF model/
