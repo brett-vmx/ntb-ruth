@@ -70,11 +70,15 @@ const INLINE_IMAGES = {
   ],
 };
 
-// Homepage / chapter-card cover images — first inline image tagged for
-// that chapter, same default Jonah used for 3 of its 4 chapters (only
-// overridden there because the client asked for a specific one on chapter
-// 2). No such request yet for Ruth — revisit if Brett/John want a
-// different cover per chapter.
+// Homepage / chapter-card cover images. Default is the first inline image
+// tagged for that chapter (same default Jonah used for 3 of its 4
+// chapters) — overridden per Brett's request for chapters 1 and 3, which
+// use their 2nd and 3rd inline images respectively instead. The actual
+// square-cropped webp files live in src/assets/chapters/covers/ (center-
+// cropped from the corresponding source-assets/images/*.jpg, 800x800,
+// Pillow) — this map just points at the filename, it doesn't do the
+// cropping; re-crop by hand from a different source image if a cover
+// choice changes again.
 const COVER_IMAGES = {
   1: `${COVER_DIR}/chapter-1.webp`,
   2: `${COVER_DIR}/chapter-2.webp`,
@@ -108,11 +112,10 @@ const NEPALI_TITLES = {
 // Dialect audio durations in seconds, read with ffprobe from the source
 // MP3s (adx/bod/khg = Amdo/Central/Kham). eng was split from a single
 // whole-book file John supplied (BSB_08_Rut_H.mp3) via a local Whisper-
-// transcription + text-alignment pass — see CLAUDE.md's "Audio & timing"
-// notes for how, and how to redo it if the source audio ever changes.
-// cmn is a placeholder (0) — Brett hasn't generated the Chinese audio yet
-// (ElevenLabs, same as Jonah's). Update this and re-run once cmn/chapter-
-// N.mp3 files exist in source-assets/audio/cmn/.
+// transcription + text-alignment pass; cmn arrived pre-split by chapter
+// (read by Jason Chen) and only needed re-encoding — see CLAUDE.md's
+// "Verse-timing" section for how both were generated, and how to redo
+// either if the source audio ever changes.
 const DURATIONS = {
   1: { adx: 404.1, bod: 263.6, khg: 238.6, eng: 235.7, cmn: 239.6 },
   2: { adx: 455.4, bod: 295.8, khg: 277.2, eng: 271.3, cmn: 239.2 },

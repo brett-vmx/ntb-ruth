@@ -1089,9 +1089,17 @@ const chapterData = await Promise.all(
     // no other-language content at all, see openIntro() above). Bound/
     // toggled once here, not per chapter-open, since it lives on the
     // homepage outside the modal entirely.
-    const introBtn = document.getElementById('intro-btn');
+    const introBtn = document.getElementById('intro-btn') as HTMLElement | null;
     function updateIntroBtnVisibility() {
-      introBtn?.classList.toggle('hidden', getTextLang() !== 'bo');
+      const visible = getTextLang() === 'bo';
+      // Real bug, reported and fixed: introBtn's own inline `style` attribute
+      // (below, in the markup) sets `display:grid` for its centering layout —
+      // an inline style always wins over a class-based rule like Tailwind's
+      // `.hidden{display:none}`, regardless of specificity, so toggling the
+      // class alone left the button visible in every language. Set
+      // style.display directly instead so it actually takes effect.
+      introBtn?.classList.toggle('hidden', !visible);
+      if (introBtn) introBtn.style.display = visible ? 'grid' : 'none';
     }
     updateIntroBtnVisibility();
     window.addEventListener('ruth:text-settings-changed', updateIntroBtnVisibility, { signal });
