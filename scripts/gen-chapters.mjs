@@ -26,9 +26,25 @@ const BSB_USFM_PATH = path.join(ROOT, 'source-assets/RUT_bsb.usfm');
 const CMN_USFM_PATH = path.join(ROOT, 'source-assets/09-RUTcmn-cu89s.usfm');
 const HI_USFM_PATH = path.join(ROOT, 'source-assets/09-RUThin2017.usfm');
 const NE_USFM_PATH = path.join(ROOT, 'source-assets/09-RUTnpiulb.usfm');
+// NTB Bible introduction + Creation-to-Christ timeline — general, whole-
+// Bible reference content (not tied to any one book), ported from
+// ntb-jonah verbatim once Brett confirmed neither file mentions Jonah
+// anywhere and John's own wording ("we would like it to be in the PWA
+// apps") reads as "every book app", not "Jonah specifically". Same
+// source files as ntb-jonah's own copies — see that project's CLAUDE.md
+// for the full request history (John's "grand slam" comment, the
+// RTF-decoding bug this uncovered, etc.). The Bible introduction RTF is
+// the one thing here that needed decodeIntroRtf() ported over too — this
+// script never needed RTF decoding before, since Ruth's own book
+// introduction above comes straight from the SFM's front matter.
+const BIBLE_INTRO_RTF_PATH = path.join(ROOT, 'source-assets/Bible introduction for NTB – for NTB PWA apps.rtf');
+const TIMELINE_ASSET_DIR = '../../assets/timeline'; // resolved by content.config.ts's image() helper, same convention as INLINE_DIR/COVER_DIR below
+const TIMELINE_PAGE_COUNT = 6;
 const TIMING_DIR = path.join(ROOT, 'source-assets/timing');
 const OUT_DIR = path.join(ROOT, 'src/content/chapters');
 const INTRO_OUT_DIR = path.join(ROOT, 'src/content/intro');
+const BIBLE_INTRO_OUT_DIR = path.join(ROOT, 'src/content/bible-intro');
+const TIMELINE_OUT_DIR = path.join(ROOT, 'src/content/timeline');
 
 // Paths below are relative to src/content/chapters/, resolved by content.config.ts's
 // image() schema helper — they point at the pre-optimized webp copies in src/assets/,
@@ -246,6 +262,106 @@ function parseIntroFromSfm(raw) {
   }
 
   return { mainTitle, introTitle, sections };
+}
+
+// ---------------------------------------------------------------------------
+// 1c. Decode the NTB Bible introduction's RTF (ported from ntb-jonah — see
+//    that project's CLAUDE.md for the full "grand slam" request history).
+//    Cocoa/TextEdit export: non-ASCII characters are \uc0\uNNNN Unicode
+//    escapes OR \'HH cp1252 hex escapes (curly quotes, en/em dashes, and a
+//    non-breaking space that genuinely appears mid-paragraph in this exact
+//    file — real bug caught on ntb-jonah, fixed here from the start rather
+//    than rediscovered), a literal "\" is doubled to "\\" (so the \mt/\s/\p
+//    markers typed as plain text survive un-escaping), and a lone "\"
+//    before a real newline is Cocoa RTF's paragraph-break shorthand.
+// ---------------------------------------------------------------------------
+
+// Windows-1252 codepoints for the 0x80-0x9F byte range, where cp1252
+// diverges from Latin-1/Unicode's direct byte->codepoint mapping — needed
+// for decodeIntroRtf()'s `\'HH` branch below. Bytes outside this range
+// (0x00-0x7F, 0xA0-0xFF) map directly to the same-valued Unicode codepoint
+// in both cp1252 and Latin-1, so only these 32 need an explicit table.
+const CP1252_HIGH = {
+  0x80: 0x20ac, 0x82: 0x201a, 0x83: 0x0192, 0x84: 0x201e, 0x85: 0x2026,
+  0x86: 0x2020, 0x87: 0x2021, 0x88: 0x02c6, 0x89: 0x2030, 0x8a: 0x0160,
+  0x8b: 0x2039, 0x8c: 0x0152, 0x8e: 0x017d, 0x91: 0x2018, 0x92: 0x2019,
+  0x93: 0x201c, 0x94: 0x201d, 0x95: 0x2022, 0x96: 0x2013, 0x97: 0x2014,
+  0x98: 0x02dc, 0x99: 0x2122, 0x9a: 0x0161, 0x9b: 0x203a, 0x9c: 0x0153,
+  0x9e: 0x017e, 0x9f: 0x0178,
+};
+
+function decodeIntroRtf(raw) {
+  // Anchor on \f0\fs<size> generically — the Bible introduction RTF uses
+  // \f0\fs32 (Jonah's own book-intro RTF used \f0\fs24; matching by regex
+  // rather than hardcoding one value covers either).
+  const bodyMatch = raw.match(/\\f0\\fs\d+/);
+  const body = bodyMatch ? raw.slice(bodyMatch.index) : raw;
+
+  let out = '';
+  let i = 0;
+  while (i < body.length) {
+    if (body[i] === '\\' && body[i + 1] === '\\') {
+      out += '\\';
+      i += 2;
+      continue;
+    }
+    if (body[i] === '\\') {
+      const rest = body.slice(i, i + 30);
+      let m;
+      if ((m = rest.match(/^\\uc0/))) { i += m[0].length; continue; }
+      if ((m = rest.match(/^\\'([0-9a-fA-F]{2})/))) {
+        const byte = parseInt(m[1], 16);
+        out += String.fromCharCode(CP1252_HIGH[byte] ?? byte);
+        i += m[0].length;
+        continue;
+      }
+      if ((m = rest.match(/^\\u(-?\d+) ?/))) {
+        let code = parseInt(m[1], 10);
+        if (code < 0) code += 65536; // RTF encodes >32767 codepoints as signed 16-bit
+        out += String.fromCharCode(code);
+        i += m[0].length;
+        continue;
+      }
+      if (body[i + 1] === '\n') { out += '\n'; i += 2; continue; }
+      if (body[i + 1] === '\r' && body[i + 2] === '\n') { out += '\n'; i += 3; continue; }
+      if ((m = rest.match(/^\\[a-zA-Z]+-?\d*\s?/))) { i += m[0].length; continue; } // any other stray control word
+      i += 1;
+      continue;
+    }
+    if (body[i] === '{' || body[i] === '}') { i++; continue; } // group braces (only the final closing brace appears in the body)
+    out += body[i];
+    i++;
+  }
+  return out;
+}
+
+// The Bible introduction's own marker set is simpler than Jonah's book-intro
+// RTF: one \mt (this document's own title — no \imt pairing, since there's
+// no separate book-name/introduction-title split here) plus \s section
+// headings and \p paragraphs (not \is1/\ipi — John's own marker choice for
+// this document). Per his instructions (typed into the RTF's own front
+// matter): \s section titles render gold, \mt and \p text render black —
+// same visual treatment openIntro() already gives the book introduction.
+function parseBibleIntroRtf(raw) {
+  const text = decodeIntroRtf(raw);
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  let title = '';
+  const sections = [];
+
+  for (const line of lines) {
+    let m;
+    if ((m = line.match(/^\\mt\s+(.*)$/))) { title = m[1]; continue; }
+    if ((m = line.match(/^\\s\s+(.*)$/))) { sections.push({ heading: m[1], paragraphs: [] }); continue; }
+    if ((m = line.match(/^\\p\s+(.*)$/))) {
+      if (sections.length) sections[sections.length - 1].paragraphs.push(m[1]);
+      continue;
+    }
+    // ignore the RTF's own front-matter lines (toggle title/placement notes
+    // above the \mt line) — none of them start with a recognized marker
+  }
+
+  return { title, sections };
 }
 
 // ---------------------------------------------------------------------------
@@ -621,11 +737,25 @@ function main() {
   const hiChapters = parseIndicUsfm(hiRaw);
   const neChapters = parseIndicUsfm(neRaw);
   const intro = parseIntroFromSfm(sfmRaw);
+  const bibleIntroRaw = fs.readFileSync(BIBLE_INTRO_RTF_PATH, 'latin1');
+  const bibleIntro = parseBibleIntroRtf(bibleIntroRaw);
+  const timeline = {
+    pages: Array.from({ length: TIMELINE_PAGE_COUNT }, (_, i) => ({
+      n: i + 1,
+      file: `${TIMELINE_ASSET_DIR}/page-${i + 1}.webp`,
+    })),
+  };
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.mkdirSync(INTRO_OUT_DIR, { recursive: true });
+  fs.mkdirSync(BIBLE_INTRO_OUT_DIR, { recursive: true });
+  fs.mkdirSync(TIMELINE_OUT_DIR, { recursive: true });
   fs.writeFileSync(path.join(INTRO_OUT_DIR, 'ruth.json'), JSON.stringify(intro, null, 2) + '\n');
   console.log(`intro: ${intro.sections.length} sections -> ${path.relative(ROOT, path.join(INTRO_OUT_DIR, 'ruth.json'))}`);
+  fs.writeFileSync(path.join(BIBLE_INTRO_OUT_DIR, 'bible-intro.json'), JSON.stringify(bibleIntro, null, 2) + '\n');
+  console.log(`bible-intro: ${bibleIntro.sections.length} sections -> ${path.relative(ROOT, path.join(BIBLE_INTRO_OUT_DIR, 'bible-intro.json'))}`);
+  fs.writeFileSync(path.join(TIMELINE_OUT_DIR, 'timeline.json'), JSON.stringify(timeline, null, 2) + '\n');
+  console.log(`timeline: ${timeline.pages.length} pages -> ${path.relative(ROOT, path.join(TIMELINE_OUT_DIR, 'timeline.json'))}`);
 
   for (const n of Object.keys(sfmChapters).map(Number).sort((a, b) => a - b)) {
     const chapter = buildChapter(n, sfmChapters[n], bsbChapters[n], cmnChapters[n], hiChapters[n], neChapters[n]);

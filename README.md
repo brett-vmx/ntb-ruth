@@ -30,18 +30,29 @@ source-assets/          Original files from the client — SFM/USFM text (5
 scripts/
   gen-chapters.mjs       Parses all 5 language sources + source-assets/
                          timing/*.txt into src/content/chapters/*.json,
-                         plus the book introduction (from 08RUTNTB.SFM's
-                         own front matter) into src/content/intro/ruth.json.
-                         Re-run this (`npm run gen-chapters`) any time a
-                         source text or timing file changes — don't
-                         hand-edit the generated JSON.
+                         the book introduction (from 08RUTNTB.SFM's own
+                         front matter) into src/content/intro/ruth.json,
+                         and two more general (not Ruth-specific) items
+                         ported from ntb-jonah — the NTB Bible introduction
+                         (an RTF) into src/content/bible-intro/, and the
+                         Creation-to-Christ timeline into
+                         src/content/timeline/. Re-run this
+                         (`npm run gen-chapters`) any time a source text or
+                         timing file changes — don't hand-edit the
+                         generated JSON.
 src/
-  content.config.ts      Content collection schemas (chapters, intro)
+  content.config.ts      Content collection schemas (chapters, intro,
+                         bibleIntro, timeline)
   content/chapters/      Generated per-chapter data (verses in all 5
                          languages, inline image placement, audio paths,
                          durations, verse timing)
   content/intro/         Generated book-introduction data (Tibetan only)
+  content/bible-intro/   Generated NTB Bible introduction (Tibetan only,
+                         ported from ntb-jonah — see CLAUDE.md)
+  content/timeline/      Generated Creation-to-Christ timeline page list
+                         (Tibetan only, ported from ntb-jonah)
   assets/chapters/       Optimized cover + inline illustration images (webp)
+  assets/timeline/       Timeline page images (webp, ported from ntb-jonah)
   assets/branding/       Logo/banner images
   components/            ChapterCard.astro
   layouts/                Layout.astro
@@ -55,9 +66,8 @@ public/
                          the rest.
   fonts/                  Self-hosted Tibetan Unicode fonts + subsetted
                          Chinese (Noto Sans SC)
-  icons/                  PWA icons — currently a Claude-built placeholder
-                         (gold tile + Tibetan wordmark), pending a real
-                         design from John (see CLAUDE.md)
+  icons/                  PWA icons — John's real share-icon design (gold
+                         tile + Tibetan wordmark), see CLAUDE.md
 ```
 
 ## Fonts

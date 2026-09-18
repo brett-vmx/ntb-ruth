@@ -87,4 +87,38 @@ const intro = defineCollection({
   }),
 });
 
-export const collections = { chapters, intro };
+// NTB Bible introduction — general, whole-Bible content (not tied to
+// Ruth or any other book), ported from ntb-jonah verbatim (same source
+// RTF, same parser) — see "Bible introduction & timeline" in CLAUDE.md
+// and ntb-jonah's own CLAUDE.md for the full request history. Simpler
+// shape than `intro` above: one title (\mt, no \imt pairing — this
+// document has no separate book-name/introduction-title split) plus \s/\p
+// sections.
+const bibleIntro = defineCollection({
+  loader: glob({ pattern: '**/*.json', base: './src/content/bible-intro' }),
+  schema: z.object({
+    title: z.string(), // \mt
+    sections: z.array(
+      z.object({
+        heading: z.string(), // \s
+        paragraphs: z.array(z.string()), // \p
+      }),
+    ),
+  }),
+});
+
+// NTB Creation-to-Christ timeline — same general, book-agnostic reasoning
+// as bibleIntro above, ported from ntb-jonah. No text to parse — each of
+// the 6 pages is a single image with its own title baked in — so this is
+// just an ordered list of pre-resized webp files (src/assets/timeline/
+// page-{1-6}.webp, copied directly from ntb-jonah's own already-processed
+// files, not reprocessed from the source PNGs again).
+const timeline = defineCollection({
+  loader: glob({ pattern: '**/*.json', base: './src/content/timeline' }),
+  schema: ({ image }) =>
+    z.object({
+      pages: z.array(z.object({ n: z.number(), file: image() })),
+    }),
+});
+
+export const collections = { chapters, intro, bibleIntro, timeline };

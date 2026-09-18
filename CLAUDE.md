@@ -467,6 +467,40 @@ popover still opens **upward** (`bottom:100%`) for the same off-screen
 reason as before, right-aligned under the notch (`right:0`, no
 transform) — matching the notch's own alignment, not centered.
 
+### Audio player size reduction + copyright spacing (ported from ntb-jonah)
+John/Scott gave the same "audio player looks a bit big" feedback on
+ntb-jonah (this app's own LISTEN bar is byte-identical markup, since it
+was copied over as part of the initial port), then refined it over two
+rounds there — see ntb-jonah's own CLAUDE.md, "Audio player size
+reduction" section, for the full back-and-forth (John's two suggested
+options, Brett rejecting the more drastic one both times, the exact
+padding numbers, and why a couple of them changed mid-conversation).
+Ported here verbatim once that conversation settled, not re-derived:
+- Tile's own top/left/right padding (bottom untouched) reduced 2px each:
+  `padding:calc(1.1rem - 2px) calc(1.1rem - 2px) 1.1rem calc(1.1rem -
+  2px)` on the tile div, instead of a flat `1.1rem`.
+- Dialect notch's own top/left/right padding each reduced a further 4px,
+  bottom dropped to 0: `padding:calc(.5rem - 4px) calc(1.1rem - 4px) 0`
+  on `#modal-dialect-btn`.
+- `#modal-dialect-notch-wrap`'s `bottom` changed from a flush `100%` to
+  `calc(100% - 10.72px)`, so the notch's text sits with its own *vertical
+  midpoint* on the tile's top border rather than just above it. 10.72px
+  is half the dialect label's own line-box height — verified this exact
+  value transfers unchanged to this app (measured directly here, not
+  assumed from ntb-jonah's own measurement): same font stack, same
+  font-size, same button markup, so the same line-box height, so the same
+  offset. Re-measure only if this app's own dialect-label font-size,
+  padding, or font stack ever diverges from ntb-jonah's.
+
+Separately, `openChapter()`'s content wrapper padding-bottom is `3rem`,
+not the `1rem` `openIntro()`'s own wrapper still uses — chapters have a
+LISTEN bar (whose notch pokes ~21px above the tile), Ruth's own book
+introduction doesn't, same reasoning as ntb-jonah's identical split.
+Without this, the notch could visually sit on top of the copyright text's
+last line when scrolled all the way down. Verified after porting: ~30px
+of clear gap between the copyright text and the notch at full scroll,
+matching ntb-jonah's own verified gap almost exactly.
+
 ### Play/pause is the position circle, not a separate 72px button
 Per feedback, there's no dedicated big play/pause button anymore — the
 small circle that marks the current position on the seek track
@@ -762,6 +796,10 @@ src/assets/chapters/covers/   Homepage chapter-card images (webp, square-cropped
                                Jonah's chapter 2).
 src/assets/chapters/inline/   In-reading illustrations (webp, converted as-is from the
                                source JPGs — no cropping, unlike the covers).
+src/assets/timeline/          Creation-to-Christ timeline pages (ported from ntb-jonah,
+                               see "Bible introduction & timeline" above), page-
+                               {1-6}.webp — copied directly from ntb-jonah's own already-
+                               processed files, not reprocessed.
 src/assets/branding/          ntb-navbar-wordmark-gold.png — same generic "New Tibetan
                                Bible" org wordmark as ntb-jonah's own (verified
                                byte-identical, copied directly rather than
@@ -786,19 +824,23 @@ public/fonts/                 Tibetan Unicode fonts (full, unsubsetted, copied f
                                ntb-jonah) + NotoSansSC-{Regular,Bold}.woff2 (Chinese,
                                subsetted specifically for Ruth) — see "Fonts" above.
 public/icons/                 PWA icon PNGs (icon-192, icon-512, apple-touch-icon) —
-                               **a Claude-built placeholder** (gold rounded-square tile,
-                               Tibetan "རུ་ཐི།" wordmark drawn with Pillow + the
-                               MonlamUniOuChan2 font), since no dedicated square
-                               icon/share-icon asset was provided for Ruth (only the
-                               wide navbar wordmark). Flag for Brett to request a real
-                               one from John, same as Jonah eventually got its own
-                               dedicated "share icon" (request #15) after starting with
-                               a similar placeholder situation. Regenerate once a real
-                               design arrives — there's no source script for the
-                               placeholder checked in, it was a one-off.
-public/favicon.ico             Multi-size (16/32/48) .ico generated from the same
-                               placeholder icon. Regenerate alongside public/icons/
-                               once a real icon design arrives.
+                               John's real "share icon" (same gold-rounded-square-
+                               tile-with-Tibetan-wordmark style as Jonah's own),
+                               replacing the earlier Claude-built placeholder (gold
+                               tile + "རུ་ཐི།" drawn with Pillow + MonlamUniOuChan2,
+                               used until this arrived). Delivered pre-sized as three
+                               separate files — source-assets/images/ntb-ruth-share-
+                               icon-final-{180,192,512}.png — same convention as
+                               Jonah's own share-icon delivery, so each is copied
+                               directly with no resizing (don't regenerate icon-192/
+                               apple-touch-icon by resizing the 512 down — the
+                               180/192 files are John's own exports, not a generic
+                               downscale, and may be sharpened/hinted differently at
+                               their actual target size).
+public/favicon.ico             Multi-size (16/32/48) .ico generated from the real
+                               share-icon 512px source with Pillow, same as Jonah's own
+                               favicon.ico generation. Regenerate alongside
+                               public/icons/ if the icon is ever replaced.
 public/badges/                Official Apple/Google store badges (app-store-badge.svg,
                                google-play-badge.png) — same files as ntb-jonah's own,
                                do not reskin, Apple/Google both require using their own
@@ -933,8 +975,10 @@ popover's outside-click close, not a backdrop click handler.
 
 ## Page structure
 Essentially one page (`src/pages/index.astro`):
-1. Book-introduction button (`#intro-btn`, Tibetan reading language only —
-   see "Book introduction" above), directly above the grid
+1. Intro-items row (`#intro-toggle`, 3 buttons — book introduction, Bible
+   introduction, timeline — Tibetan reading language only, see "Book
+   introduction" and "Bible introduction & timeline" above), directly
+   above the grid
 2. 2-col grid of 4 chapter cards — square image, dark scrim + big white
    numeral (per client reference: a food-photography meal-plan app with the
    same "numeral over photo" card treatment), Tibetan chapter label at the
@@ -1061,11 +1105,13 @@ scheme is embedded in the source text itself.
 **Text-only, Tibetan-only, by design** — no introductions for
 English/Chinese/Hindi/Nepali (NTB hasn't translated them, and there's
 nothing to translate them *from* in-app the way other provisional
-translations in this doc are Claude's own). The `#intro-btn` button
-(index.astro, homepage markup) starts visible in the server-rendered HTML
-(Tibetan is the default reading language) and is hidden/shown by
-`updateIntroBtnVisibility()` on every `ruth:text-settings-changed`, same
-event-driven pattern as every other reactive UI bit in this app. If the
+translations in this doc are Claude's own). The `#intro-toggle` element
+(index.astro, homepage markup — now a row of 3 independent buttons shared
+with the Bible introduction and timeline, see "Bible introduction &
+timeline" above) starts visible in the server-rendered HTML (Tibetan is
+the default reading language) and is hidden/shown by
+`updateIntroToggleVisibility()` on every `ruth:text-settings-changed`,
+same event-driven pattern as every other reactive UI bit in this app. If the
 introduction is open and the reader switches away from Tibetan mid-view, a
 dedicated listener closes the modal outright — `renderReadSection()`
 (bound to the same event) doesn't handle this itself, since it bails out
@@ -1150,6 +1196,52 @@ how [it's one-directional]... I'm leaning toward [both directions]"):
   introduction itself was opened from (its own entry was never pushed),
   not to the introduction a second time.
 
+### Bible introduction & timeline (ported from ntb-jonah)
+Two more Tibetan-only "intro items" alongside Ruth's own book introduction
+above — the NTB's general Bible introduction and its Creation-to-Christ
+timeline (6 pages). Both originated as **ntb-jonah's** request #21 ("grand
+slam"), but neither is actually Jonah-specific content — the Bible
+introduction's own title is "Bible introduction for NTB – for NTB PWA
+apps" and its content covers the whole Old/New Testament and the New
+Tibetan Bible's translation history in general; the timeline is a
+Creation-to-Christ salvation-history overview. Brett confirmed neither
+file mentions Jonah anywhere and decided to port the identical content
+(not book-specific variants) to this app rather than wait for John to ask
+separately — see ntb-jonah's own CLAUDE.md, "Bible introduction & timeline
+buttons" section, for the full request history, every design iteration
+(including a segmented-toggle version tried and explicitly reverted), and
+the real RTF-decoding bug (`\'HH` cp1252 hex-escapes) found and fixed
+while first parsing the Bible introduction there. This section only
+covers what's specific to porting it into *this* app.
+
+**Content pipeline**: `parseBibleIntroRtf()`/`decodeIntroRtf()` in
+gen-chapters.mjs are ported wholesale from ntb-jonah, including the
+CP1252 fix from the start (this script never needed RTF decoding before —
+Ruth's own book introduction above comes straight from the SFM's front
+matter, no Cocoa RTF involved). Source RTF
+(`source-assets/Bible introduction for NTB – for NTB PWA apps.rtf`) is
+byte-identical to ntb-jonah's own copy; verified the generated
+`bible-intro.json` is byte-identical to ntb-jonah's own output too. The
+timeline has no text to parse — `src/assets/timeline/page-{1-6}.webp` are
+copied directly from ntb-jonah's own already-processed files (not
+reprocessed from the source PNGs again), since it's the identical content
+with identical resize/quality settings; `source-assets/Timeline/` (source
+PNGs + John's own README RTF) is copied over the same way for completeness.
+
+**UI**: `openBibleIntro()`/`openTimeline()`, the `bibleIntroOpen`/
+`timelineOpen`/`timelinePageIdx` state, the homepage's 3-button row
+(`#intro-toggle`, deliberately no highlighted/default button — see
+ntb-jonah's CLAUDE.md for why that changed from an earlier segmented-
+toggle attempt), and the Timeline's own internal 6-page picker are all
+ported verbatim from ntb-jonah's final (post-iteration) implementation —
+same markup, same `calc(100% - 3rem)` width and `calc(1rem - 3.28px)`
+vertical-alignment tuning against `#modal-close` for the page-picker.
+Verified those exact numbers transfer unchanged to this app (measured
+directly here, not assumed): same font stack, same button markup, same
+close-button size, so the same offsets hold. `bibleIntro`/`timeline`
+content collections in content.config.ts mirror ntb-jonah's schemas
+exactly.
+
 ## What NOT to do
 - Do not add SSR or any adapter — static output only
 - Do not add React, Preact, Vue, or any JS framework
@@ -1233,24 +1325,41 @@ how [it's one-directional]... I'm leaning toward [both directions]"):
   the copyright and cross-promo lines deliberately stay on
   new-tibetan-bible.com (see "About page" above); only change this if
   Brett confirms a Ruth-specific domain actually exists
-- Do not add a background, border, or shadow to `#intro-btn` (the book-
-  introduction button above the chapter grid) without checking with Brett
-  first — he was explicit it should read as plain text, not a primary
-  button, so it doesn't visually compete with the chapter grid right below
-  it (see "Book introduction" above)
+- The plain-text/no-background treatment originally specified for the
+  book-introduction button (see "Book introduction" above) no longer
+  applies — it's now one of 3 white pill buttons in a row (`#intro-toggle`,
+  see "Bible introduction & timeline" above); don't revert to a plain-text
+  button without checking first, since that would mean redesigning the
+  Bible-intro/timeline buttons too, not just Ruth's own
+- Do not add a highlighted/"active" visual state to any of the 3 homepage
+  intro-item buttons — ntb-jonah tried a segmented-toggle version with one
+  default-active button first and explicitly reverted to all 3 identical
+  with none selected (see "Bible introduction & timeline" above); the
+  Timeline modal's own internal 6-page picker is a different, real
+  selection state and keeps its active styling — don't confuse the two
 - Do not add English/Chinese/Hindi/Nepali content to the book introduction,
-  and don't show `#intro-btn` for any reading language but Tibetan — NTB
-  hasn't translated the introduction into those languages (see "Book
-  introduction" above)
-- Do not give the introduction its own history entry / URL — it's a
-  homepage peek like the About/Settings sheets, even though chapter 1 now
-  links/swipes back to it (see "Book introduction" above); closing chapter
-  1 after arriving that way still goes back to before the introduction was
-  opened, not to the introduction itself
+  the Bible introduction, or the timeline, and don't show `#intro-toggle`
+  for any reading language but Tibetan — NTB hasn't translated any of the
+  three into those languages (see "Book introduction" and "Bible
+  introduction & timeline" above)
+- Do not give the introduction, Bible introduction, or timeline their own
+  history entry / URL — all three are homepage peeks like the About/
+  Settings sheets, even though chapter 1 now links/swipes back to the book
+  introduction (see "Book introduction" above); closing chapter 1 after
+  arriving that way still goes back to before the introduction was opened,
+  not to the introduction itself
 - Do not add the chapter-1-back-to-introduction link/swipe for any reading
   language but Tibetan — it's gated in both `chapterNavHtml()` and the
-  swipe handler the same way `#intro-btn` is, and needs to disappear (not
-  just stay stale) if the reader switches language while chapter 1 is open
+  swipe handler the same way `#intro-toggle` is, and needs to disappear
+  (not just stay stale) if the reader switches language while chapter 1 is
+  open
+- Do not add the Bible introduction or timeline to the homepage as
+  separate standalone links — they're deliberately part of the same
+  `#intro-toggle` row as the book introduction (see "Bible introduction &
+  timeline" above)
+- Do not reset the timeline's `timelinePageIdx` in `closeModal()` — it
+  deliberately persists across a close so re-opening Timeline doesn't
+  always land back on page 1; only visiting a *different* page changes it
   (see "Book introduction" above)
 
 ## Deployment
