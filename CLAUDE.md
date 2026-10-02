@@ -1242,6 +1242,39 @@ close-button size, so the same offsets hold. `bibleIntro`/`timeline`
 content collections in content.config.ts mirror ntb-jonah's schemas
 exactly.
 
+### Tibetan shad spacing (request #32, ported from ntb-jonah)
+Render-time only, in index.astro's `formatTibetanShads()` — the generated JSON
+and source SFM are never changed. Rules are John's in-country team's: a single
+shad keeps the source's ordinary space (untouched); a double shad — literal
+`།།` (two U+0F0D) or the single `༎` (U+0F0E, deliberately *displayed* as །+།) —
+becomes two shads with a U+2002 EN SPACE between them, set in DejaVu Sans at
+`font-size:80%` (so it reads as 0.8 en) inside a `white-space:nowrap` span; the
+four-shad book ending (`།། །།`, Ruth 4:22) gets shad / 0.8-en / shad / U+2003
+EM SPACE / shad / 0.8-en / shad, all nowrap. Its regex runs *before* the plain
+double-shad pass or that pass would eat each half separately. Applied to
+verse-by-verse and paragraph text, both intro modals' paragraphs and headings,
+and titles. Ruth's source has no `༎`; the four-shad ending was verified at 4:22.
+Don't change these rules without John's say-so.
+
+**Not ported from ntb-jonah (as of this commit):** request #31 (full
+right-margin justification — `justifyTibetanTsheg()`, `.tibetan-justify`,
+`.ts`) and the rest of requests #24-34 (button order / Bible-intro label,
+gold-title +1pt sizing, Chinese org-name logo, timeline swipe, the settings-
+sheet pass-through guard). ntb-jonah's "Pending John's review" section says why;
+port them together once John signs off.
+
+### Next-verse seek tolerance (`SEEK_EPSILON`)
+`findVerseIndex()` in index.astro compares verse start times against
+`audio.currentTime` with a 50ms tolerance (`time <= t + SEEK_EPSILON`), not a
+strict `<=`. After `audio.currentTime = 4.06` the media element can read back
+4.059999 — a hair before the verse's own start — which a strict comparison
+treats as "still in the previous verse", so **next-verse jumped to the same
+spot and never advanced** (and the highlight lagged a verse). Found on
+ntb-esther's English track; whether it triggers depends on the exact float
+values. It did not reproduce on ntb-jonah's tracks without the fix (headless
+Chrome; not separately tested without the fix on Ruth's), so this is a
+defensive port. Don't revert to a strict comparison.
+
 ## What NOT to do
 - Do not add SSR or any adapter — static output only
 - Do not add React, Preact, Vue, or any JS framework
