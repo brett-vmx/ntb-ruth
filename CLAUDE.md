@@ -889,11 +889,13 @@ Layout.astro's script looks both up from one `HEADER_TITLES` map, keyed by
 `TextLang`, and updates them together on `ruth:text-settings-changed` and
 on init — setting `#header-title`'s text and `.tibetan`/`.chinese` class,
 and toggling which of `#header-logo-img`/`#header-logo-text` is hidden.
-There's no Chinese wordmark asset or confirmed Chinese org-name
-translation (and none for Hindi/Nepali either), so every non-Tibetan mode
-deliberately falls back to the same English text logo rather than guessing
-at brand wording — don't add a guessed non-English logo translation
-without confirming with John/Brett first. **Only active on pages using the
+Chinese shows John's confirmed org name **藏文圣经新译本** (request #33, in
+the `.chinese` font, via the `ORG_NAME_LOGO` map; all 7 characters were
+already in the subsetted Noto Sans SC) — and the same name replaced the
+provisional `《新藏文圣经》` in the Chinese About page's cross-promo line.
+There's still no confirmed Hindi/Nepali org-name translation, so English/
+Hindi/Nepali fall back to the English text logo — don't add a guessed
+non-English logo translation without confirming with John/Brett first. **Only active on pages using the
 default title** — guarded by `data-reactive-title` on `#header-title`, set
 server-side from `title === 'Ruth'` — so the static `/chapter/[n]`
 fallback page (which passes its own `Chapter N — Ruth` title) is untouched
@@ -1256,12 +1258,38 @@ verse-by-verse and paragraph text, both intro modals' paragraphs and headings,
 and titles. Ruth's source has no `༎`; the four-shad ending was verified at 4:22.
 Don't change these rules without John's say-so.
 
-**Not ported from ntb-jonah (as of this commit):** request #31 (full
-right-margin justification — `justifyTibetanTsheg()`, `.tibetan-justify`,
-`.ts`) and the rest of requests #24-34 (button order / Bible-intro label,
-gold-title +1pt sizing, Chinese org-name logo, timeline swipe, the settings-
-sheet pass-through guard). ntb-jonah's "Pending John's review" section says why;
-port them together once John signs off.
+### Tibetan justification and the rest of requests #24-34 (ported from ntb-jonah)
+All of ntb-jonah's #24-34 batch is now in Ruth too (ported verbatim from
+Jonah's reviewed code, then each piece verified in headless Chrome at a phone
+viewport). Items, with ntb-jonah's CLAUDE.md as the full write-up:
+- **#31 justification (prototype, pending John's review).**
+  `justifyTibetanTsheg()` inserts `<span class="ts"> </span>` after every tsheg
+  (U+0F0B) not already followed by whitespace; `.ts{word-spacing:-0.2735em}`
+  (the Monlam space advance, identical in all three bundled fonts) makes it
+  zero-width at rest but a real stretch point; `.tibetan-justify`
+  (`text-align:justify; text-justify:inter-word`, global.css) goes on Tibetan
+  verse blocks, paragraphs and intro paragraphs only — not headings or other
+  languages. Render-time only, JSON untouched. If John's team rejects it,
+  removing `justifyTibetanTsheg()` from the call sites and the
+  `tibetan-justify` class is the whole revert (do it in Jonah/Esther too).
+- **#27/#28 button order:** the homepage row is **Bible | Ruth's own book
+  intro | Timeline** (John asked for the same order in every book), and the
+  Bible-intro label is `སྔོན་འགྲོ།` with a trailing shad. Dispatch is by
+  `data-intro-tab`, not position.
+- **#29/#30:** gold intro titles/headings are `calc(var(--reading-font-size,
+  1.15rem) + 1pt)` so they stay 1pt over body text at every size setting.
+- **#33:** Chinese org name 藏文圣经新译本 (see the header section above).
+- **#25 timeline swipe:** left/right swipe moves between the 6 timeline pages
+  via `goToTimelinePage()`, which no-ops at the first/last page (verified:
+  1→2→3→2, clamped at 1).
+- **#34 settings-sheet bug:** the settings/About sheets' backdrops are
+  `pointer-events:none`, so a tap in the dimmed gap above a sheet fell through
+  to the open chapter's close button and closed both. `isOverlaySheetOpen()`
+  now guards the chapter modal's close button, backdrop click and swipe-down.
+  Don't remove it; test any new `pointer-events:none` overlay the same way.
+- **#24** (Jonah chapter-1 image corrections) and **#26** (timeline text size —
+  John must re-export the images; then re-run the resize/webp pipeline in
+  *every* app) have nothing to port here.
 
 ### Next-verse seek tolerance (`SEEK_EPSILON`)
 `findVerseIndex()` in index.astro compares verse start times against
@@ -1394,6 +1422,17 @@ defensive port. Don't revert to a strict comparison.
   deliberately persists across a close so re-opening Timeline doesn't
   always land back on page 1; only visiting a *different* page changes it
   (see "Book introduction" above)
+
+- Do not put the 3 homepage intro buttons back in Ruth | Bible | Timeline
+  order or drop the Bible-intro label's trailing shad — it's Bible | book |
+  Timeline for every book (#27/#28)
+- Do not give the gold intro titles a fixed font size, and do not hand-edit
+  the generated JSON for shad spacing or tsheg spans (#29-32) — they're
+  render-time only and the shad rules come from John's in-country team
+- Do not remove `isOverlaySheetOpen()` from the chapter modal's close
+  button/backdrop/swipe-down handlers (#34)
+- Do not show a guessed Hindi/Nepali org name in the header; Chinese's is
+  藏文圣经新译本 (confirmed, #33)
 
 ## Deployment
 - **Netlify** — push to GitHub → Netlify auto-deploys, same as `ntb-jonah`.
