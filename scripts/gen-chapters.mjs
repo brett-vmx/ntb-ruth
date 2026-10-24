@@ -222,7 +222,20 @@ function parseSfm(raw) {
       continue;
     }
     if (line.startsWith('\\p') || line.startsWith('\\m')) {
-      pendingParagraph = true; // attach to whichever verse comes next
+      // A bare \p / \m marks a paragraph break (attach to whichever verse comes next).
+      // But a \m (flush-left continuation) can also CARRY TEXT — Ruth 4:12 ends with
+      // "\m ཞེས་བརྗོད་དོ། །" and 4:15 with "\m ཞེས་སྨྲས།". This branch used to `continue` past the
+      // whole line, silently dropping those closing phrases (John's Ruth request).
+      // Text on such a line belongs to the verse above it, as one more line, like \q1.
+      const rest = line.replace(/^\\(?:p\w*|m)\s*/, '').trim();
+      if (rest && !rest.startsWith('\\v ') && verseNum !== null) {
+        const vnotes = chapters[chapterNum].notes[verseNum] ?? [];
+        const text = extractFootnotes(rest, vnotes);
+        if (vnotes.length) chapters[chapterNum].notes[verseNum] = vnotes;
+        if (text) chapters[chapterNum].verses[verseNum].push(text);
+      } else {
+        pendingParagraph = true;
+      }
       continue;
     }
     if (line.startsWith('\\v ')) {
